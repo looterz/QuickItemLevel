@@ -1,6 +1,6 @@
 # Quick Item Level
 
-Quick Item Level is a lightweight and efficient World of Warcraft addon that enhances your gameplay experience by providing quick and easy access to item level and gear information. With Quick Item Level, you can instantly view the item level and specialization of other players by simply hovering over them.
+Quick Item Level is a lightweight and efficient World of Warcraft addon that enhances your gameplay experience by providing quick and easy access to item level and class spec information. With Quick Item Level, you can instantly view the item level and specialization of other players by simply hovering over them.
 
 ## Features
 
