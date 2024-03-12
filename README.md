@@ -10,8 +10,6 @@ Quick Item Level is a lightweight and efficient World of Warcraft addon that enh
 
 - **Efficient Caching**: The addon utilizes an intelligent caching system to store and manage player data efficiently. This ensures that information is readily available and minimizes unnecessary API calls, resulting in improved performance.
 
-- **Automatic Updating**: Quick Item Level automatically updates the item level and specialization information whenever you mouseover a player, ensuring that you always have the most up-to-date data.
-
 - **Lightweight and Non-Intrusive**: Quick Item Level is designed to be lightweight and non-intrusive, seamlessly integrating with the default World of Warcraft UI. It does not clutter your screen with unnecessary information or require complex configuration.
 
 ## Installation
