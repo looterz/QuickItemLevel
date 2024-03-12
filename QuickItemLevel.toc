@@ -2,7 +2,7 @@
 ## IconTexture: Interface\ICONS\Pet_Type_Mechanical
 ## Title: Simple Item Level
 ## Notes: Shows players average item level and chosen class specialization in tooltips.
-## Author: looter
+## Author: looterz
 ## Version: 1.0
 
-SimpleItemLevel.lua
+QuickItemLevel.lua

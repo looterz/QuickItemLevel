@@ -1,0 +1,59 @@
+name: Upload to CurseForge
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+    - name: Generate Changelog
+      id: generate_changelog
+      run: |
+        CHANGELOG=$(git log --pretty=format:'%s' ${{ github.event.repository.default_branch }}..HEAD)
+        CHANGELOG="${CHANGELOG//'%'/'%25'}"
+        CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+        CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+        echo ::set-output name=CHANGELOG::$CHANGELOG
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          Changes in this Release:
+          ${{ steps.generate_changelog.outputs.CHANGELOG }}
+        draft: false
+        prerelease: false
+
+    - name: Bundle Addon
+      run: |
+        mkdir -p build
+        zip -r build/QuickItemLevel.zip QuickItemLevel
+
+    - name: Upload to CurseForge
+      uses: itsmeow/curseforge-upload@3.1.1
+      with:
+        project_id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+        file_path: build/QuickItemLevel.zip
+        changelog: Release ${{ steps.get_version.outputs.VERSION }}
+        display_name: QuickItemLevel
+        changelog_type: text
+        game_endpoint: wow
+        relations: curse-project-id
+        token: ${{ secrets.CURSEFORGE_API_TOKEN }}
