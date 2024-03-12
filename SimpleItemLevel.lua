@@ -10,9 +10,7 @@ local UnitClass = UnitClass
 local GetInspectSpecialization = GetInspectSpecialization
 local GetSpecializationInfoByID = GetSpecializationInfoByID
 local C_PaperDollInfo = C_PaperDollInfo
-local C_Timer = C_Timer
 local GameTooltip_SetTooltipWaitingForData = GameTooltip_SetTooltipWaitingForData
-local InspectData = {}
 
 local RAID_CLASS_COLORS = {
     ["DEATH KNIGHT"] = { r = 0.77, g = 0.12, b = 0.23 },
@@ -31,156 +29,86 @@ local RAID_CLASS_COLORS = {
 }
 
 local SimpleItemLevelDebug = false
-local inspectDelay = 0.25 -- The delay in seconds before an inspection is initiated
-local maxRetries = 10
-local retryDelay = 0.25
+local throttleTime = 0.1 -- Throttle time for inspections (in seconds)
+local cacheExpireTime = 600 -- Cache expiration time (in seconds)
 
-local function printDebug(msg)
-    if SimpleItemLevelDebug then
-        print(msg)
-    end
-end
+local printDebug = SimpleItemLevelDebug and print or function() end
 
 local function GetSpecNameByID(specID)
-    local specId = GetInspectSpecialization("mouseover")
-    local specName = select(2, GetSpecializationInfoByID(specId))
-    if specName == nil then
-        specName = "N/A"
-    end
-    return specName
+    local specName = select(2, GetSpecializationInfoByID(specID))
+    return specName or "N/A"
 end
 
-local function InspectMouseoverUnit()
+-- LRU cache implementation
+local InspectCache = {}
+local InspectCacheSize = 1000 -- Maximum cache size
+local InspectCacheOrder = {} -- LRU order
+
+local function UpdateCacheOrder(key)
+    local order = InspectCacheOrder[key]
+    if order then
+        table.remove(InspectCacheOrder, order)
+    end
+    table.insert(InspectCacheOrder, key)
+end
+
+local function TrimCache()
+    while #InspectCacheOrder > InspectCacheSize do
+        local key = table.remove(InspectCacheOrder, 1)
+        InspectCache[key] = nil
+        printDebug("Removed cache entry for " .. key .. " due to cache size limit")
+    end
+end
+
+local function GetInspectData(guid)
+    local data = InspectCache[guid]
+    if data then
+        if time() - data.timestamp >= cacheExpireTime then
+            InspectCache[guid] = nil
+            printDebug("Removed cache entry for " .. guid .. " due to expiration")
+            return nil
+        else
+            UpdateCacheOrder(guid)
+        end
+    end
+    return data
+end
+
+local function SetInspectData(guid, data)
+    if not InspectCache[guid] then
+        if #InspectCacheOrder >= InspectCacheSize then
+            TrimCache()
+        end
+        UpdateCacheOrder(guid)
+    end
+    InspectCache[guid] = data
+end
+
+local lastInspectTime = 0
+local inspectQueue = {}
+
+local function ProcessInspectQueue()
+    if #inspectQueue > 0 then
+        local guid = table.remove(inspectQueue, 1)
+        local unit = "mouseover"
+        if UnitGUID(unit) == guid and CanInspect(unit, true) then
+            NotifyInspect(unit)
+            printDebug("Inspecting " .. UnitName(unit))
+        else
+            printDebug("Cannot inspect, skipping")
+        end
+    end
+end
+
+local function UpdateMouseoverTooltip(self)
     if not UnitIsPlayer("mouseover") then
         return
     end
 
-    local class, _, classId = UnitClass("mouseover")
-    local _, spec = GetSpecializationInfoByID(GetInspectSpecialization("mouseover"))
-    local specName = GetSpecNameByID(spec)
-    local ilevel = C_PaperDollInfo.GetInspectItemLevel("mouseover")
-    local tag = UnitGUID("mouseover")
+    local guid = UnitGUID("mouseover")
+    local data = InspectCache[guid]
 
-    if spec == nil then
-        spec = "N/A"
-    end
-
-    -- For whatever reason, we failed to inspect the unit
-    if ilevel == 0 then
-        return
-    end
-
-    InspectData[tag] = {
-        class = class,
-        spec = spec,
-        specName = specName,
-        ilevel = ilevel,
-        timestamp = time()
-    }
-
-    printDebug("InspectMouseoverUnit: " .. tag .. " " .. class .. " " .. spec .. " " .. ilevel)
-end
-
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("INSPECT_READY")
-frame:RegisterEvent("VARIABLES_LOADED")
-
-local function cleanCache()
-    for k, data in pairs(InspectData) do
-        if data ~= nil then
-            if (time() - data.timestamp >= 300 or data.ilevel == 0 or data.specName == "N/A") then
-                InspectData[k] = nil
-            end
-        end
-    end
-end
-
-local function RegisterMouseoverLoop()
-    C_Timer.After(3, function()
-        frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-        RegisterMouseoverLoop()
-    end )
-end
-
-local function RegisterCacheCleanupLoop()
-    C_Timer.After(60, function()
-        cleanCache()
-        RegisterCacheCleanupLoop()
-    end)
-end
-
-local function retryNotifyInspect(retriesLeft)
-    if (retriesLeft <= 0 or hasInspected or not UnitIsPlayer("mouseover")) then 
-        printDebug("retryNotifyInspect: " .. tostring(retriesLeft) .. " " .. tostring(hasInspected) .. " " .. tostring(UnitIsPlayer("mouseover")))
-        return 
-    end
-
-    C_Timer.After(retryDelay, function()
-        if not hasInspected then
-            printDebug("retryNotifyInspect: " .. tostring(retriesLeft))
-
-            if CanInspect("mouseover", true) then
-                NotifyInspect("mouseover")
-            end
-
-            retryNotifyInspect(retriesLeft - 1)
-        end
-    end)
-end
-
-local inspectTimer
-
-frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "VARIABLES_LOADED" then
-        printDebug("VARIABLES_LOADED")
-
-        frame:UnregisterEvent("VARIABLES_LOADED")
-        frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-
-        RegisterMouseoverLoop()
-        RegisterCacheCleanupLoop()
-    elseif event == "UPDATE_MOUSEOVER_UNIT" then
-        printDebug("UPDATE_MOUSEOVER_UNIT")
-
-        local data = InspectData[UnitGUID("mouseover")]
-
-        if data == nil then
-            if inspectTimer then
-                inspectTimer:Cancel()
-            end
-
-            inspectTimer = C_Timer.NewTimer(inspectDelay, function()
-                frame:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
-                frame:RegisterEvent("INSPECT_READY")
-                if CanInspect("mouseover", true) then
-                    NotifyInspect("mouseover")
-                    hasInspected = false
-                end
-                retryNotifyInspect(maxRetries)
-            end)
-        end
-    elseif event == "INSPECT_READY" then
-        printDebug("INSPECT_READY")
-
-        if inspectTimer then
-            inspectTimer:Cancel()
-        end
-
-        hasInspected = true
-        InspectMouseoverUnit()
-        frame:UnregisterEvent("INSPECT_READY")
-        frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-    end
-end)
-
-local function UpdateMouseoverTooltip(self, elapsed)
-    if not UnitIsPlayer("mouseover") then
-        return
-    end
-    
-    local data = InspectData[UnitGUID("mouseover")]
-
-    if data ~= nil then
+    if data then
         GameTooltip_SetTooltipWaitingForData(self, false)
 
         local addLine = true
@@ -211,4 +139,75 @@ local function UpdateMouseoverTooltip(self, elapsed)
         GameTooltip_SetTooltipWaitingForData(self, true)
     end
 end
-GameTooltip:HookScript("OnUpdate", UpdateMouseoverTooltip)
+
+local frame = CreateFrame("Frame")
+frame:RegisterEvent("VARIABLES_LOADED")
+frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+frame:RegisterEvent("INSPECT_READY")
+
+frame:SetScript("OnEvent", function(self, event, ...)
+    if event == "VARIABLES_LOADED" then
+        printDebug("VARIABLES_LOADED")
+    elseif event == "UPDATE_MOUSEOVER_UNIT" then
+        printDebug("UPDATE_MOUSEOVER_UNIT")
+        local unit = "mouseover"
+        if UnitIsPlayer(unit) then
+            local guid = UnitGUID(unit)
+            local data = GetInspectData(guid)
+
+            if not data or (time() - data.timestamp >= cacheExpireTime) then
+                if CanInspect(unit, true) then
+                    table.insert(inspectQueue, 1, guid)
+                    printDebug("Queued mouseover inspect for " .. UnitName(unit))
+                    ProcessInspectQueue()
+                else
+                    printDebug("Cannot inspect " .. UnitName(unit) .. ", skipping")
+                end
+            else
+                printDebug("Using cached data for " .. UnitName(unit) .. ", last updated " .. (time() - data.timestamp) .. " seconds ago")
+                UpdateMouseoverTooltip(GameTooltip)
+            end
+        end
+    elseif event == "INSPECT_READY" then
+        local guid = UnitGUID("mouseover")
+        if guid then
+            local class, _, classId = UnitClass("mouseover")
+            local spec = GetInspectSpecialization("mouseover")
+            local specName = GetSpecNameByID(spec)
+            local ilevel = C_PaperDollInfo.GetInspectItemLevel("mouseover")
+
+            if ilevel ~= 0 then
+                local data = {
+                    class = class,
+                    spec = spec,
+                    specName = specName,
+                    ilevel = ilevel,
+                    timestamp = time()
+                }
+
+                SetInspectData(guid, data)
+                printDebug("InspectUnit: " .. guid .. " " .. class .. " " .. spec .. " " .. ilevel)
+
+                if UnitGUID("mouseover") == guid then
+                    printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
+                    UpdateMouseoverTooltip(GameTooltip)
+                end
+            end
+        end
+    end
+end)
+
+GameTooltip:HookScript("OnUpdate", function(self)
+    if not UnitIsPlayer("mouseover") then
+        return
+    end
+
+    local guid = UnitGUID("mouseover")
+    local data = InspectCache[guid]
+
+    if data then
+        UpdateMouseoverTooltip(self)
+    else
+        GameTooltip_SetTooltipWaitingForData(self, true)
+    end
+end)
