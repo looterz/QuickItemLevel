@@ -26,11 +26,11 @@ Once installed, Quick Item Level will automatically start working whenever you m
 
 ## Feedback and Support
 
-If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/yourusername/QuickItemLevel/issues) on GitHub.
+If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/looterz/QuickItemLevel/issues) on GitHub.
 
 ## Contribution
 
-If you would like to contribute to the development of Quick Item Level, please feel free to submit pull requests on the [GitHub repository](https://github.com/yourusername/QuickItemLevel). We welcome any contributions, whether it's bug fixes, new features, or documentation improvements.
+If you would like to contribute to the development of Quick Item Level, please feel free to submit pull requests on the [GitHub repository](https://github.com/looterz/QuickItemLevel). We welcome any contributions, whether it's bug fixes, new features, or documentation improvements.
 
 ## License
 
