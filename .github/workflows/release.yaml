@@ -50,6 +50,7 @@ jobs:
       run: |
         mkdir -p /tmp/QuickItemLevel
         cp -r ${{ github.workspace }}/* /tmp/QuickItemLevel/
+        mkdir -p ${{ github.workspace }}/build
         cd /tmp
         zip -r ${{ github.workspace }}/build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip ./QuickItemLevel
 
