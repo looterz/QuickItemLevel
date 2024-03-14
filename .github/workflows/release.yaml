@@ -48,6 +48,7 @@ jobs:
 
     - name: Bundle Addon
       run: |
+        cd /home/runner/work/QuickItemLevel/QuickItemLevel
         mkdir -p build
         zip -r build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip QuickItemLevel
 
