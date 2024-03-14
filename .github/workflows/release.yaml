@@ -44,13 +44,13 @@ jobs:
     - name: Bundle Addon
       run: |
         mkdir -p build
-        zip -r build/QuickItemLevel.zip QuickItemLevel
+        zip -r build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip QuickItemLevel
 
     - name: Upload to CurseForge
       uses: itsmeow/curseforge-upload@3.1.1
       with:
         project_id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
-        file_path: build/QuickItemLevel.zip
+        file_path: build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
         changelog: Release ${{ steps.get_version.outputs.VERSION }}
         display_name: QuickItemLevel
         changelog_type: text
