@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
 
 jobs:
   upload:
@@ -16,7 +21,7 @@ jobs:
 
     - name: Get the version
       id: get_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      run: echo ::set-output name=VERSION::${{ github.event.inputs.tag || github.ref_name }}
 
     - name: Generate Changelog
       id: generate_changelog
@@ -33,8 +38,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+        release_name: Release ${{ github.event.inputs.tag || github.ref_name }}
         body: |
           Changes in this Release:
           ${{ steps.generate_changelog.outputs.CHANGELOG }}
