@@ -63,5 +63,11 @@ jobs:
         display_name: QuickItemLevel
         changelog_type: text
         game_endpoint: wow
-        relations: curse-project-id
+        relations: |
+          [
+            {
+              "type": "project",
+              "slug": "${{ secrets.CURSEFORGE_PROJECT_SLUG }}"
+            }
+          ]
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
