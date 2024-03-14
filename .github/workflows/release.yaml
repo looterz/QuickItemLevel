@@ -63,13 +63,5 @@ jobs:
         display_name: QuickItemLevel
         changelog_type: text
         game_endpoint: wow
-        relations: |
-          {
-            "projects": [
-              {
-                "slug": "${{ secrets.CURSEFORGE_PROJECT_SLUG }}",
-                "type": ["requiredDependency"]
-              }
-            ]
-          }
+        relations: "quick-item-level:requiredDependency"
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
