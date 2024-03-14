@@ -36,4 +36,4 @@ If you would like to contribute to the development of Quick Item Level, please f
 
 ## License
 
-Quick Item Level is released under the [MIT License](https://opensource.org/licenses/MIT). You are free to use, modify, and distribute the addon in accordance with the terms of the license.
+Quick Item Level is released under the [MIT License](https://github.com/looterz/QuickItemLevel/blob/main/LICENSE). You are free to use, modify, and distribute the addon in accordance with the terms of the license.
