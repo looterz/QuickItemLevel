@@ -60,8 +60,9 @@ jobs:
         project_id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         file_path: build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
         changelog: Release ${{ steps.get_version.outputs.VERSION }}
-        display_name: QuickItemLevel
+        display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
         changelog_type: text
         game_endpoint: wow
+        game_versions: "120"
         relations: "quick-item-level:requiredDependency"
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
