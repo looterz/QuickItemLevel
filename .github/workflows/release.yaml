@@ -21,7 +21,7 @@ jobs:
     - name: Generate Changelog
       id: generate_changelog
       run: |
-        CHANGELOG=$(git log --pretty=format:'%s' ${{ github.event.repository.default_branch }}..HEAD)
+        CHANGELOG=$(git log --pretty=format:'%s' HEAD^..HEAD)
         CHANGELOG="${CHANGELOG//'%'/'%25'}"
         CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
         CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
