@@ -64,10 +64,12 @@ jobs:
         changelog_type: text
         game_endpoint: wow
         relations: |
-          [
-            {
-              "type": "tool",
-              "slug": "${{ secrets.CURSEFORGE_PROJECT_SLUG }}"
-            }
-          ]
+          {
+            "projects": [
+              {
+                "slug": "${{ secrets.CURSEFORGE_PROJECT_SLUG }}",
+                "type": "requiredDependency"
+              }
+            ]
+          }
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
