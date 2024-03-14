@@ -68,7 +68,7 @@ jobs:
             "projects": [
               {
                 "slug": "${{ secrets.CURSEFORGE_PROJECT_SLUG }}",
-                "type": "requiredDependency"
+                "type": ["requiredDependency"]
               }
             ]
           }
