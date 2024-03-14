@@ -28,11 +28,11 @@ local RAID_CLASS_COLORS = {
     ["EVOKER"] = { r = 0.2, g = 0.576, b = 0.498 }
 }
 
-local SimpleItemLevelDebug = false
+local QuickItemLevelDebug = false
 local throttleTime = 0.1 -- Throttle time for inspections (in seconds)
 local cacheExpireTime = 600 -- Cache expiration time (in seconds)
 
-local printDebug = SimpleItemLevelDebug and print or function() end
+local printDebug = QuickItemLevelDebug and print or function() end
 
 local function GetSpecNameByID(specID)
     local specName = select(2, GetSpecializationInfoByID(specID))
@@ -115,7 +115,7 @@ local function UpdateMouseoverTooltip(self)
 
         for i = self:NumLines(), 1, -1 do
             local line = _G[self:GetName().."TextLeft"..i]:GetText()
-            if (strsub(line, 1, 17) == "Simple Item Level") then
+            if (strsub(line, 1, 16) == "Quick Item Level") then
                 addLine = false
                 break
             end
@@ -132,7 +132,7 @@ local function UpdateMouseoverTooltip(self)
         end
 
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Simple Item Level", 1, 0.85, 0, 1)
+        GameTooltip:AddLine("Quick Item Level", 1, 0.85, 0, 1)
         GameTooltip:AddLine(tostring(specName) .. " (" .. data.ilevel ..")", specColor.r, specColor.g, specColor.b, 1)
         GameTooltip:Show()
     else

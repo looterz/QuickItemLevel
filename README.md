@@ -1,6 +1,6 @@
 # Quick Item Level
 
-Quick Item Level is a lightweight and efficient World of Warcraft addon that enhances your gameplay experience by providing quick and easy access to item level and gear information. With Quick Item Level, you can instantly view the item level and specialization of other players by simply hovering over them.
+Quick Item Level is a lightweight and efficient World of Warcraft addon that enhances your gameplay experience by providing quick and easy access to item level and class spec information in tooltips. With Quick Item Level, you can instantly view the average item level and specialization of other players by simply hovering over them and viewing the "Quick Item Level" area in the tooltip after the data is fetched by the game.
 
 ## Features
 
@@ -16,8 +16,10 @@ Quick Item Level is a lightweight and efficient World of Warcraft addon that enh
 
 ## Installation
 
-1. Download the latest version of Quick Item Level from CurseForge or Github.
+1. Download the latest version of Quick Item Level from [CurseForge](https://www.curseforge.com/wow/addons/quick-item-level) or Github. If using CurseForge, no further action is required as the addon will be automatically installed using the CurseForge app.
+
 2. Extract the downloaded ZIP file and place the "QuickItemLevel" folder into your World of Warcraft addons directory (located at `World of Warcraft\_retail_\Interface\AddOns`).
+
 3. Launch World of Warcraft and mouse over players to see their chosen specialization and average item level.
 
 ## Usage
@@ -26,11 +28,11 @@ Once installed, Quick Item Level will automatically start working whenever you m
 
 ## Feedback and Support
 
-If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/yourusername/QuickItemLevel/issues) on GitHub.
+If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/looterz/QuickItemLevel/issues) on GitHub.
 
 ## Contribution
 
-If you would like to contribute to the development of Quick Item Level, please feel free to submit pull requests on the [GitHub repository](https://github.com/yourusername/QuickItemLevel). We welcome any contributions, whether it's bug fixes, new features, or documentation improvements.
+If you would like to contribute to the development of Quick Item Level, please feel free to submit pull requests on the [GitHub repository](https://github.com/looterz/QuickItemLevel). We welcome any contributions, whether it's bug fixes, new features, or documentation improvements.
 
 ## License
 
