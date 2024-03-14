@@ -48,9 +48,10 @@ jobs:
 
     - name: Bundle Addon
       run: |
-        cd /home/runner/work/QuickItemLevel/QuickItemLevel
-        mkdir -p build
-        zip -r build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip ./QuickItemLevel
+        mkdir -p /tmp/QuickItemLevel
+        cp -r ${{ github.workspace }}/* /tmp/QuickItemLevel/
+        cd /tmp
+        zip -r ${{ github.workspace }}/build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip ./QuickItemLevel
 
     - name: Upload to CurseForge
       uses: itsmeow/curseforge-upload@3.1.1
