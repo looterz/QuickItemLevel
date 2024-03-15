@@ -42,6 +42,8 @@ To access the configuration options through the World of Warcraft UI:
 The available configuration options are:
 
 - **Cache Size**: Adjusts the maximum number of player inspections to keep in the cache. A higher value will store more data but consume more memory. Default value is 1000.
+- **Require Shift Key**: When enabled, inspections will only be performed when the Shift key is held down while mousing over a player. Default value is false.
+- **Inspection Delay**: Sets the delay (in seconds) before performing an inspection when mousing over a player. Default value is 0.025 seconds (25ms).
 
 ### Slash Commands
 
