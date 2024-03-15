@@ -52,19 +52,6 @@ Quick Item Level also provides slash commands for quick access to the configurat
 
 You can use these slash commands to quickly access the configuration options without navigating through the World of Warcraft UI.
 
-### Configuring Cache Size
-
-To change the cache size:
-
-1. Open the Quick Item Level configuration panel using the addon settings or slash commands.
-2. Locate the "Cache Size" slider.
-3. Adjust the slider to set the desired cache size value. The minimum value is 100, and the maximum value is 5000.
-4. The addon will automatically update the cache size based on your selection.
-
-Please note that setting a very high cache size may impact the addon's performance and consume more memory. It's recommended to find a balance that suits your needs and system resources.
-
-If you have any questions or need further assistance with the configuration options, please feel free to reach out on our support channels.
-
 ## Feedback and Support
 
 If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/looterz/QuickItemLevel/issues) on GitHub.
