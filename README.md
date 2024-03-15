@@ -26,6 +26,45 @@ Quick Item Level is a lightweight and efficient World of Warcraft addon that enh
 
 Once installed, Quick Item Level will automatically start working whenever you mouseover a player. Simply hover your cursor over a player, and their item level and specialization will be displayed in the tooltip.
 
+## Configuration
+
+Quick Item Level provides configuration options to customize the addon's behavior. You can access the configuration settings through the World of Warcraft UI or by using slash commands.
+
+### Addon Settings
+
+To access the configuration options through the World of Warcraft UI:
+
+1. Open the Main Menu by clicking on the Game Menu button (default: Escape key).
+2. Click on "Options" or "System" (depending on your game version).
+3. Go to the "AddOns" tab.
+4. Find "Quick Item Level" in the addon list and click on it to expand the settings.
+
+The available configuration options are:
+
+- **Cache Size**: Adjusts the maximum number of player inspections to keep in the cache. A higher value will store more data but consume more memory. Default value is 1000.
+
+### Slash Commands
+
+Quick Item Level also provides slash commands for quick access to the configuration panel:
+
+- `/qil`: Opens the Quick Item Level configuration panel.
+- `/quickitemlevel`: An alternative command to open the configuration panel.
+
+You can use these slash commands to quickly access the configuration options without navigating through the World of Warcraft UI.
+
+### Configuring Cache Size
+
+To change the cache size:
+
+1. Open the Quick Item Level configuration panel using the addon settings or slash commands.
+2. Locate the "Cache Size" slider.
+3. Adjust the slider to set the desired cache size value. The minimum value is 100, and the maximum value is 5000.
+4. The addon will automatically update the cache size based on your selection.
+
+Please note that setting a very high cache size may impact the addon's performance and consume more memory. It's recommended to find a balance that suits your needs and system resources.
+
+If you have any questions or need further assistance with the configuration options, please feel free to reach out on our support channels.
+
 ## Feedback and Support
 
 If you encounter any issues, have suggestions for improvements, or want to provide feedback, please visit the [Quick Item Level issue tracker](https://github.com/looterz/QuickItemLevel/issues) on GitHub.

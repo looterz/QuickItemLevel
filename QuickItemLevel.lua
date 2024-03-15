@@ -1,3 +1,13 @@
+local addonName, addonTable = ...
+local QuickItemLevel = LibStub("AceAddon-3.0"):NewAddon(addonName, "AceConsole-3.0", "AceEvent-3.0")
+
+-- Default configuration values
+local defaults = {
+  global = {
+    cacheSize = 2500,
+  },
+}
+
 -- Localization for performance improvement
 local _G = _G
 local pairs = pairs
@@ -34,14 +44,8 @@ local cacheExpireTime = 600 -- Cache expiration time (in seconds)
 
 local printDebug = QuickItemLevelDebug and print or function() end
 
-local function GetSpecNameByID(specID)
-    local specName = select(2, GetSpecializationInfoByID(specID))
-    return specName or "N/A"
-end
-
 -- LRU cache implementation
 local InspectCache = {}
-local InspectCacheSize = 1000 -- Maximum cache size
 local InspectCacheOrder = {} -- LRU order
 
 local function UpdateCacheOrder(key)
@@ -53,11 +57,51 @@ local function UpdateCacheOrder(key)
 end
 
 local function TrimCache()
-    while #InspectCacheOrder > InspectCacheSize do
+    while #InspectCacheOrder > QuickItemLevel.db.global.cacheSize do
         local key = table.remove(InspectCacheOrder, 1)
         InspectCache[key] = nil
         printDebug("Removed cache entry for " .. key .. " due to cache size limit")
     end
+end
+
+function QuickItemLevel:OnInitialize()
+  self.db = LibStub("AceDB-3.0"):New("QuickItemLevelDB", defaults, true)
+
+  LibStub("AceConfig-3.0"):RegisterOptionsTable(addonName, self:GetOptions())
+  self.optionsFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions(addonName, "Quick Item Level")
+
+  self:RegisterChatCommand("qil", "ChatCommand")
+  self:RegisterChatCommand("quickitemlevel", "ChatCommand")
+end
+
+function QuickItemLevel:GetOptions()
+  return {
+    type = "group",
+    args = {
+      cacheSize = {
+        order = 1,
+        type = "range",
+        name = "Cache Size",
+        desc = "Set the maximum number of player inspections to keep in the cache.",
+        min = 100,
+        max = 5000,
+        step = 100,
+        get = function() return self.db.global.cacheSize end,
+        set = function(_, value) self.db.global.cacheSize = value; TrimCache() end,
+      },
+    },
+  }
+end
+
+function QuickItemLevel:ChatCommand(input)
+  if input == "" then
+    LibStub("AceConfigDialog-3.0"):Open(addonName)
+  end
+end
+
+local function GetSpecNameByID(specID)
+    local specName = select(2, GetSpecializationInfoByID(specID))
+    return specName or "N/A"
 end
 
 local function GetInspectData(guid)
@@ -76,7 +120,7 @@ end
 
 local function SetInspectData(guid, data)
     if not InspectCache[guid] then
-        if #InspectCacheOrder >= InspectCacheSize then
+        if #InspectCacheOrder >= QuickItemLevel.db.global.cacheSize then
             TrimCache()
         end
         UpdateCacheOrder(guid)
@@ -140,74 +184,71 @@ local function UpdateMouseoverTooltip(self)
     end
 end
 
-local frame = CreateFrame("Frame")
-frame:RegisterEvent("VARIABLES_LOADED")
-frame:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-frame:RegisterEvent("INSPECT_READY")
+function QuickItemLevel:OnEnable()
+  self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
+  self:RegisterEvent("INSPECT_READY")
 
-frame:SetScript("OnEvent", function(self, event, ...)
-    if event == "VARIABLES_LOADED" then
-        printDebug("VARIABLES_LOADED")
-    elseif event == "UPDATE_MOUSEOVER_UNIT" then
-        printDebug("UPDATE_MOUSEOVER_UNIT")
-        local unit = "mouseover"
-        if UnitIsPlayer(unit) then
-            local guid = UnitGUID(unit)
-            local data = GetInspectData(guid)
-
-            if not data or (time() - data.timestamp >= cacheExpireTime) then
-                if CanInspect(unit, true) then
-                    table.insert(inspectQueue, 1, guid)
-                    printDebug("Queued mouseover inspect for " .. UnitName(unit))
-                    ProcessInspectQueue()
-                else
-                    printDebug("Cannot inspect " .. UnitName(unit) .. ", skipping")
-                end
-            else
-                printDebug("Using cached data for " .. UnitName(unit) .. ", last updated " .. (time() - data.timestamp) .. " seconds ago")
-                UpdateMouseoverTooltip(GameTooltip)
-            end
-        end
-    elseif event == "INSPECT_READY" then
-        local guid = UnitGUID("mouseover")
-        if guid then
-            local class, _, classId = UnitClass("mouseover")
-            local spec = GetInspectSpecialization("mouseover")
-            local specName = GetSpecNameByID(spec)
-            local ilevel = C_PaperDollInfo.GetInspectItemLevel("mouseover")
-
-            if ilevel ~= 0 then
-                local data = {
-                    class = class,
-                    spec = spec,
-                    specName = specName,
-                    ilevel = ilevel,
-                    timestamp = time()
-                }
-
-                SetInspectData(guid, data)
-                printDebug("InspectUnit: " .. guid .. " " .. class .. " " .. spec .. " " .. ilevel)
-
-                if UnitGUID("mouseover") == guid then
-                    printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
-                    UpdateMouseoverTooltip(GameTooltip)
-                end
-            end
-        end
-    end
-end)
-
-GameTooltip:HookScript("OnUpdate", function(self)
+  GameTooltip:HookScript("OnUpdate", function(self)
     if not UnitIsPlayer("mouseover") then
-        return
+      return
     end
 
     local guid = UnitGUID("mouseover")
     local data = InspectCache[guid]
 
     if data then
-        UpdateMouseoverTooltip(self)
+      UpdateMouseoverTooltip(self)
     else
-        GameTooltip_SetTooltipWaitingForData(self, true)
+      GameTooltip_SetTooltipWaitingForData(self, true)
     end
-end)
+  end)
+end
+
+function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
+  printDebug("UPDATE_MOUSEOVER_UNIT")
+  local unit = "mouseover"
+  if UnitIsPlayer(unit) then
+    local guid = UnitGUID(unit)
+    local data = GetInspectData(guid)
+
+    if not data or (time() - data.timestamp >= cacheExpireTime) then
+      if CanInspect(unit, true) then
+        table.insert(inspectQueue, 1, guid)
+        printDebug("Queued mouseover inspect for " .. UnitName(unit))
+        ProcessInspectQueue()
+      else
+        printDebug("Cannot inspect " .. UnitName(unit) .. ", skipping")
+      end
+    else
+      printDebug("Using cached data for " .. UnitName(unit) .. ", last updated " .. (time() - data.timestamp) .. " seconds ago")
+      UpdateMouseoverTooltip(GameTooltip)
+    end
+  end
+end
+
+function QuickItemLevel:INSPECT_READY(_, guid)
+  if guid then
+    local class, _, classId = UnitClass("mouseover")
+    local spec = GetInspectSpecialization("mouseover")
+    local specName = GetSpecNameByID(spec)
+    local ilevel = C_PaperDollInfo.GetInspectItemLevel("mouseover")
+
+    if ilevel ~= 0 then
+      local data = {
+        class = class,
+        spec = spec,
+        specName = specName,
+        ilevel = ilevel,
+        timestamp = time()
+      }
+
+      SetInspectData(guid, data)
+      printDebug("InspectUnit: " .. guid .. " " .. class .. " " .. spec .. " " .. ilevel)
+
+      if UnitGUID("mouseover") == guid then
+        printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
+        UpdateMouseoverTooltip(GameTooltip)
+      end
+    end
+  end
+end

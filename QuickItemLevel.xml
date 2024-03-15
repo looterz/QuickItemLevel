@@ -1,0 +1,34 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+  <Frame name="QuickItemLevelConfigPanel" hidden="true" inherits="SettingsBaseVertical" virtual="true">
+    <Layers>
+      <Layer level="ARTWORK">
+        <FontString name="$parentTitle" text="Quick Item Level" inherits="GameFontNormalLarge" justifyH="LEFT" justifyV="TOP">
+          <Anchors>
+            <Anchor point="TOPLEFT">
+              <Offset>
+                <AbsDimension x="16" y="-16"/>
+              </Offset>
+            </Anchor>
+          </Anchors>
+        </FontString>
+      </Layer>
+    </Layers>
+    <Frames>
+      <Slider name="$parentCacheSizeSlider" inherits="UISliderTemplateWithLabels">
+        <Anchors>
+          <Anchor point="TOPLEFT" relativeTo="$parentTitle" relativePoint="BOTTOMLEFT">
+            <Offset>
+              <AbsDimension x="0" y="-20"/>
+            </Offset>
+          </Anchor>
+        </Anchors>
+        <Scripts>
+          <OnValueChanged>
+            QuickItemLevel_SetCacheSize(self:GetValue())
+          </OnValueChanged>
+        </Scripts>
+      </Slider>
+    </Frames>
+  </Frame>
+</Ui>

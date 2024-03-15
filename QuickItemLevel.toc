@@ -3,6 +3,11 @@
 ## Title: Quick Item Level
 ## Notes: Shows players average item level and chosen class specialization in tooltips.
 ## Author: looterz
-## Version: 1.0.2
+## Version: 1.0.3
+## SavedVariables: QuickItemLevelDB
 
+# Ace3 Library
+embeds.xml
+
+QuickItemLevel.xml
 QuickItemLevel.lua
