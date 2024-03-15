@@ -16,7 +16,7 @@ Quick Item Level is a lightweight and efficient World of Warcraft addon that enh
 
 ## Installation
 
-1. Download the latest version of Quick Item Level from [CurseForge](https://www.curseforge.com/wow/addons/quick-item-level) or Github. If using CurseForge, no further action is required as the addon will be automatically installed using the CurseForge app.
+1. Download the latest version of Quick Item Level from [CurseForge](https://www.curseforge.com/wow/addons/quick-item-level) or [Github](https://github.com/looterz/QuickItemLevel/issues). If using CurseForge, no further action is required as the addon will be automatically installed using the CurseForge app.
 
 2. Extract the downloaded ZIP file and place the "QuickItemLevel" folder into your World of Warcraft addons directory (located at `World of Warcraft\_retail_\Interface\AddOns`).
 
