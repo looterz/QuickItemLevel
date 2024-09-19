@@ -259,7 +259,7 @@ local function UpdateMouseoverTooltip(self)
 
         for i = self:NumLines(), 1, -1 do
             local line = _G[self:GetName() .. "TextLeft" .. i]:GetText()
-            if (strsub(line, 1, 16) == "Quick Item Level") then
+            if (line ~= nil and strsub(line, 1, 16) == "Quick Item Level") then
                 addLine = false
                 break
             end
