@@ -63,6 +63,6 @@ jobs:
         display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
         changelog_type: text
         game_endpoint: wow
-        game_versions: "11596,11926,12215,12495"
+        game_versions: "11596,11926,12215,12495,12918"
         relations: "quick-item-level:requiredDependency"
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
