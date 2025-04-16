@@ -3,66 +3,116 @@ name: Upload to CurseForge
 on:
   push:
     tags:
-      - '*'
+      - '*' # Trigger on any tag push
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release'
+        description: 'Tag to release (e.g., v1.2.0)'
         required: true
 
 jobs:
   upload:
     runs-on: ubuntu-latest
+    # Add permissions required for creating releases and potentially other interactions
+    permissions:
+      contents: write # Needed for softprops/action-gh-release to create releases/tags
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout code
+      # Use a more recent version of checkout
+      uses: actions/checkout@v4
       with:
+        # Fetch all history so we can generate a changelog
         fetch-depth: 0
 
     - name: Get the version
       id: get_version
-      run: echo ::set-output name=VERSION::${{ github.event.inputs.tag || github.ref_name }}
+      run: |
+        # Use GITHUB_OUTPUT for setting outputs (newer syntax)
+        echo "VERSION=${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_OUTPUT
 
     - name: Generate Changelog
       id: generate_changelog
       run: |
-        CHANGELOG=$(git log --pretty=format:'%s' HEAD^..HEAD)
-        CHANGELOG="${CHANGELOG//'%'/'%25'}"
-        CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
-        CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
-        echo ::set-output name=CHANGELOG::$CHANGELOG
+        # Get the commit message associated with the tag being pushed/specified
+        # This replicates the original behavior of getting the message from HEAD^..HEAD
+        # which usually corresponds to the tag's commit message if tagged correctly.
+        # For a more comprehensive changelog (e.g., since last tag), the script would need adjustment.
+        CHANGELOG_RAW=$(git log --pretty=format:'* %s' -n 1 ${{ steps.get_version.outputs.VERSION }})
 
-    - name: Create Release
+        # Use GITHUB_OUTPUT with multiline support
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        echo "${CHANGELOG_RAW}" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        echo "Generated Changelog:" # Log for debugging
+        echo "${CHANGELOG_RAW}"     # Log for debugging
+
+    - name: Create GitHub Release
       id: create_release
-      uses: actions/create-release@v1
+      # Replace the archived action with a maintained one that supports body content
+      uses: softprops/action-gh-release@v2
       env:
+        # The GITHUB_TOKEN is automatically available and sufficient with the right permissions
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-        release_name: Release ${{ github.event.inputs.tag || github.ref_name }}
+        # Use the version determined earlier for the tag
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        # Set the release name (title)
+        name: Release ${{ steps.get_version.outputs.VERSION }}
+        # Include the generated changelog in the release body
         body: |
           Changes in this Release:
           ${{ steps.generate_changelog.outputs.CHANGELOG }}
+        # Set draft and prerelease status as before
         draft: false
         prerelease: false
+        # Note: softprops/action-gh-release can also upload assets directly using the 'files' input,
+        # but we'll keep your separate bundling step for now.
 
     - name: Bundle Addon
       run: |
-        mkdir -p /tmp/QuickItemLevel
-        cp -r ${{ github.workspace }}/* /tmp/QuickItemLevel/
-        mkdir -p ${{ github.workspace }}/build
-        cd /tmp
-        zip -r ${{ github.workspace }}/build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip ./QuickItemLevel
+        ADDON_NAME="QuickItemLevel" # Define addon name variable
+        VERSION="${{ steps.get_version.outputs.VERSION }}" # Get version
+        echo "Bundling $ADDON_NAME version $VERSION"
+
+        # Create temporary directory structure
+        TEMP_DIR="/tmp/$ADDON_NAME"
+        mkdir -p "$TEMP_DIR"
+        echo "Copying files from ${{ github.workspace }} to $TEMP_DIR"
+        # Use rsync for better control (e.g., excluding .git, .github, build dir)
+        rsync -av --exclude='.git' --exclude='.github' --exclude='build' "${{ github.workspace }}/" "$TEMP_DIR/"
+
+        # Create build directory if it doesn't exist
+        BUILD_DIR="${{ github.workspace }}/build"
+        mkdir -p "$BUILD_DIR"
+
+        # Define zip file name
+        ZIP_FILE="$BUILD_DIR/$ADDON_NAME-$VERSION.zip"
+        echo "Creating zip file: $ZIP_FILE"
+
+        # Create the zip archive from the temporary directory, ensuring correct internal structure
+        cd /tmp # Change directory to ensure the zip contains 'QuickItemLevel/...'
+        zip -r "$ZIP_FILE" "./$ADDON_NAME"
+
+        echo "Bundle created successfully."
+        ls -l "$BUILD_DIR" # List build directory contents for verification
 
     - name: Upload to CurseForge
+      # Keep using the specified version of the CurseForge upload action
       uses: itsmeow/curseforge-upload@3.1.1
       with:
         project_id: ${{ secrets.CURSEFORGE_PROJECT_ID }}
         file_path: build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
+        # Keep the simple release title for CurseForge changelog as per original workflow
         changelog: Release ${{ steps.get_version.outputs.VERSION }}
-        display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
-        changelog_type: text
+        # Or, if you want the detailed commit message on CurseForge too:
+        # changelog: ${{ steps.generate_changelog.outputs.CHANGELOG }}
+        # changelog_type: markdown # Use markdown if using the detailed changelog
+        changelog_type: text # Keep as text if using the simple title
+        display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip # Display name on CurseForge
         game_endpoint: wow
+        # Double-check if these game version IDs are still current for your target WoW versions
         game_versions: "11596,11926,12215,12495,12918"
+        # Verify 'quick-item-level' is the correct CurseForge slug for the relation
         relations: "quick-item-level:requiredDependency"
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
