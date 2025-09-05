@@ -111,7 +111,7 @@ jobs:
         changelog_type: text # Keep as text if using the simple title
         display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip # Display name on CurseForge
         game_endpoint: wow
-        game_versions: "110200"
+        game_versions: "13433"
         # Verify 'quick-item-level' is the correct CurseForge slug for the relation
         relations: "quick-item-level:requiredDependency"
         token: ${{ secrets.CURSEFORGE_API_TOKEN }}
