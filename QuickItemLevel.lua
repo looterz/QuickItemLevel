@@ -230,6 +230,7 @@ end
 
 local lastInspectTime = 0
 local inspectQueue = {}
+local qilWaitingForData = false
 
 local function ProcessInspectQueue()
     if #inspectQueue > 0 then
@@ -254,6 +255,7 @@ local function UpdateMouseoverTooltip(self)
 
     if data then
         GameTooltip_SetTooltipWaitingForData(self, false)
+        qilWaitingForData = false
 
         local addLine = true
 
@@ -303,6 +305,10 @@ function QuickItemLevel:OnEnable()
 
     GameTooltip:HookScript("OnUpdate", function(self)
         if not UnitIsPlayer("mouseover") then
+            if qilWaitingForData then
+                GameTooltip_SetTooltipWaitingForData(self, false)
+                qilWaitingForData = false
+            end
             return
         end
 
@@ -311,8 +317,10 @@ function QuickItemLevel:OnEnable()
 
         if data then
             UpdateMouseoverTooltip(self)
+            qilWaitingForData = false
         else
             GameTooltip_SetTooltipWaitingForData(self, true)
+            qilWaitingForData = true
         end
     end)
 
