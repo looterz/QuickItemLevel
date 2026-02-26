@@ -1,9 +1,9 @@
-## Interface: 110200, 110205, 110207, 120000
+## Interface: 110200, 110205, 110207, 120000, 120001
 ## IconTexture: Interface\ICONS\Pet_Type_Mechanical
 ## Title: Quick Item Level
 ## Notes: Shows players average item level and chosen class specialization in tooltips.
 ## Author: looterz
-## Version: 1.1.9
+## Version: 1.2.0
 ## SavedVariables: QuickItemLevelDB
 
 # Ace3 Library
