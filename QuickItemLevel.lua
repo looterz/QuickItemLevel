@@ -272,6 +272,8 @@ local function UpdateMouseoverTooltip(self)
         end
 
         local specName = data.specName
+        if not data.class then return end
+
         local specColor = RAID_CLASS_COLORS[string.upper(data.class)]
 
         if specColor == nil then
@@ -363,7 +365,7 @@ function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
 end
 
 function QuickItemLevel:INSPECT_READY(_, guid)
-    if guid then
+    if guid and UnitGUID("mouseover") == guid then
         local class, _, classId = UnitClass("mouseover")
         local spec = GetInspectSpecialization("mouseover")
         local specName = GetSpecNameByID(spec)
@@ -380,11 +382,8 @@ function QuickItemLevel:INSPECT_READY(_, guid)
 
             SetInspectData(guid, data)
             printDebug("InspectUnit: " .. guid .. " " .. class .. " " .. spec .. " " .. ilevel)
-
-            if UnitGUID("mouseover") == guid then
-                printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
-                UpdateMouseoverTooltip(GameTooltip)
-            end
+            printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
+            UpdateMouseoverTooltip(GameTooltip)
         end
     end
 end
