@@ -1,58 +1,53 @@
 # Quick Item Level
 
-Quick Item Level is a lightweight and efficient World of Warcraft addon that enhances your gameplay experience by providing quick and easy access to item level and class spec information in tooltips. With Quick Item Level, you can instantly view the average item level and specialization of other players by simply hovering over them and viewing the "Quick Item Level" area in the tooltip after the data is fetched by the game.
+Quick Item Level is a lightweight World of Warcraft addon that displays player item levels and class specializations in tooltips. Hover over any player — in the world, in your party or raid frames, your target, focus, or target-of-target — to instantly see their gear level and spec.
 
 ## Features
 
-- **Instant Item Level Display**: When you mouseover a player, their item level will be immediately displayed in the tooltip, allowing you to quickly assess their gear quality.
+- **Item Level & Spec Display**: Hover over any player to see their average item level and current specialization directly in the tooltip.
 
-- **Specialization Information**: In addition to the item level, Quick Item Level also shows the player's current specialization, giving you a better understanding of their role and playstyle.
+- **Works on All Unit Frames**: Not just mouseover — also works on target, focus, party, raid, and target-of-target frames.
 
-- **Efficient Caching**: The addon utilizes an intelligent caching system to store and manage player data efficiently. This ensures that information is readily available and minimizes unnecessary API calls, resulting in improved performance.
+- **Customizable Tooltip Style**: Choose between three display layouts:
+  - **Inline Colors** (default) — Spec and item level on one line with class-colored spec and gold item level.
+  - **Side by Side** — Spec on the left, item level on the right.
+  - **Stacked Lines** — Spec and item level on separate lines.
 
-- **Automatic Updating**: Quick Item Level automatically updates the item level and specialization information whenever you mouseover a player, ensuring that you always have the most up-to-date data.
+- **Display Options**: Toggle spec name, item level, and the "Quick Item Level" header independently.
 
-- **Lightweight and Non-Intrusive**: Quick Item Level is designed to be lightweight and non-intrusive, seamlessly integrating with the default World of Warcraft UI. It does not clutter your screen with unnecessary information or require complex configuration.
+- **Efficient LRU Caching**: Inspection data is cached with configurable size and expiration to minimize API calls and improve performance.
+
+- **Lightweight and Non-Intrusive**: Seamlessly integrates with the default World of Warcraft UI with no extra frames or windows.
 
 ## Installation
 
-1. Download the latest version of Quick Item Level from [CurseForge](https://www.curseforge.com/wow/addons/quick-item-level) or [Github](https://github.com/looterz/QuickItemLevel). If using CurseForge, no further action is required as the addon will be automatically installed using the CurseForge app.
+1. Download the latest version of Quick Item Level from [CurseForge](https://www.curseforge.com/wow/addons/quick-item-level) or [GitHub](https://github.com/looterz/QuickItemLevel). If using CurseForge, no further action is required as the addon will be automatically installed using the CurseForge app.
 
 2. Extract the downloaded ZIP file and place the "QuickItemLevel" folder into your World of Warcraft addons directory (located at `World of Warcraft\_retail_\Interface\AddOns`).
 
-3. Launch World of Warcraft and mouse over players to see their chosen specialization and average item level.
-
-## Usage
-
-Once installed, Quick Item Level will automatically start working whenever you mouseover a player. Simply hover your cursor over a player, and their item level and specialization will be displayed in the tooltip.
+3. Launch World of Warcraft and hover over players to see their specialization and average item level.
 
 ## Configuration
 
-Quick Item Level provides configuration options to customize the addon's behavior. You can access the configuration settings through the World of Warcraft UI or by using slash commands.
-
-### Addon Settings
-
-To access the configuration options through the World of Warcraft UI:
-
-1. Open the Main Menu by clicking on the Game Menu button (default: Escape key).
-2. Click on "Options" or "System" (depending on your game version).
-3. Go to the "AddOns" tab.
-4. Find "Quick Item Level" in the addon list and click on it to expand the settings.
-
-The available configuration options are:
-
-- **Cache Size**: Adjusts the maximum number of player inspections to keep in the cache. A higher value will store more data but consume more memory. Default value is 1000.
-- **Inspection Delay**: Sets the delay (in seconds) before performing an inspection when mousing over a player. Default value is 0.025 seconds (25ms).
-- **Require Shift Key**: When enabled, inspections will only be performed when the Shift key is held down while mousing over a player. Default value is false.
+Access settings through the World of Warcraft AddOns options panel or by using the slash commands below.
 
 ### Slash Commands
 
-Quick Item Level also provides slash commands for quick access to the configuration panel:
+- `/qil` — Opens the Quick Item Level configuration panel.
+- `/quickitemlevel` — Alternative command to open the configuration panel.
 
-- `/qil`: Opens the Quick Item Level configuration panel.
-- `/quickitemlevel`: An alternative command to open the configuration panel.
+### Settings
 
-You can use these slash commands to quickly access the configuration options without navigating through the World of Warcraft UI.
+| Setting | Description | Default |
+|---------|-------------|---------|
+| **Cache Size** | Maximum number of player inspections to keep in cache. | 2500 |
+| **Inspection Delay** | Delay in seconds before performing an inspection. | 0.025s |
+| **Cache Expiration** | Time in seconds before cached data expires and is re-fetched. | 600s |
+| **Require Shift Key** | Only inspect players when Shift is held down. | Off |
+| **Show Specialization** | Display the player's specialization in the tooltip. | On |
+| **Show Item Level** | Display the player's item level in the tooltip. | On |
+| **Show Header** | Display the "Quick Item Level" header line above the data. | Off |
+| **Tooltip Style** | Choose between Inline Colors, Side by Side, or Stacked Lines. | Inline Colors |
 
 ## Feedback and Support
 

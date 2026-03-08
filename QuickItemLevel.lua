@@ -6,13 +6,17 @@ local defaults = {
     global = {
         cacheSize = 2500,
         shiftKeyRequired = false,
-        inspectDelay = 0.025
+        inspectDelay = 0.025,
+        cacheExpireTime = 600,
+        showSpec = true,
+        showItemLevel = true,
+        tooltipStyle = "inline",
+        showHeader = false,
     }
 }
 
 -- Localization for performance improvement
 local _G = _G
-local pairs = pairs
 local time = time
 local tostring = tostring
 local strsub = strsub
@@ -24,77 +28,7 @@ local GetSpecializationInfoByID = GetSpecializationInfoByID
 local C_PaperDollInfo = C_PaperDollInfo
 local GameTooltip_SetTooltipWaitingForData = GameTooltip_SetTooltipWaitingForData
 
-local RAID_CLASS_COLORS = {
-    ["DEATH KNIGHT"] = {
-        r = 0.77,
-        g = 0.12,
-        b = 0.23
-    },
-    ["DEMON HUNTER"] = {
-        r = 0.64,
-        g = 0.19,
-        b = 0.79
-    },
-    ["DRUID"] = {
-        r = 1.00,
-        g = 0.49,
-        b = 0.04
-    },
-    ["HUNTER"] = {
-        r = 0.67,
-        g = 0.83,
-        b = 0.45
-    },
-    ["MAGE"] = {
-        r = 0.25,
-        g = 0.78,
-        b = 0.92
-    },
-    ["MONK"] = {
-        r = 0.00,
-        g = 1.00,
-        b = 0.59
-    },
-    ["PALADIN"] = {
-        r = 0.96,
-        g = 0.55,
-        b = 0.73
-    },
-    ["PRIEST"] = {
-        r = 1.00,
-        g = 1.00,
-        b = 1.00
-    },
-    ["ROGUE"] = {
-        r = 1.00,
-        g = 0.96,
-        b = 0.41
-    },
-    ["SHAMAN"] = {
-        r = 0.00,
-        g = 0.44,
-        b = 0.87
-    },
-    ["WARLOCK"] = {
-        r = 0.53,
-        g = 0.53,
-        b = 0.93
-    },
-    ["WARRIOR"] = {
-        r = 0.78,
-        g = 0.61,
-        b = 0.43
-    },
-    ["EVOKER"] = {
-        r = 0.2,
-        g = 0.576,
-        b = 0.498
-    }
-}
-
 local QuickItemLevelDebug = false
-local throttleTime = 0.1 -- Throttle time for inspections (in seconds)
-local cacheExpireTime = 600 -- Cache expiration time (in seconds)
 
 local printDebug = QuickItemLevelDebug and print or function()
 end
@@ -104,9 +38,11 @@ local InspectCache = {}
 local InspectCacheOrder = {} -- LRU order
 
 local function UpdateCacheOrder(key)
-    local order = InspectCacheOrder[key]
-    if order then
-        table.remove(InspectCacheOrder, order)
+    for i, k in ipairs(InspectCacheOrder) do
+        if k == key then
+            table.remove(InspectCacheOrder, i)
+            break
+        end
     end
     table.insert(InspectCacheOrder, key)
 end
@@ -170,13 +106,28 @@ function QuickItemLevel:GetOptions()
                             self.db.global.inspectDelay = value
                         end
                     },
-                    spacer = {
+                    cacheExpireTime = {
                         order = 3,
+                        type = "range",
+                        name = "Cache Expiration",
+                        desc = "Time in seconds before cached inspection data expires.",
+                        min = 60,
+                        max = 3600,
+                        step = 60,
+                        get = function()
+                            return self.db.global.cacheExpireTime
+                        end,
+                        set = function(_, value)
+                            self.db.global.cacheExpireTime = value
+                        end
+                    },
+                    spacer = {
+                        order = 4,
                         type = "description",
                         name = "",
                     },
                     shiftKeyRequired = {
-                        order = 4,
+                        order = 5,
                         type = "toggle",
                         name = "Require Shift Key",
                         desc = "Only perform inspections when the Shift key is held down.",
@@ -185,6 +136,59 @@ function QuickItemLevel:GetOptions()
                         end,
                         set = function(_, value)
                             self.db.global.shiftKeyRequired = value
+                        end
+                    },
+                    showSpec = {
+                        order = 6,
+                        type = "toggle",
+                        name = "Show Specialization",
+                        desc = "Display the player's specialization in the tooltip.",
+                        get = function()
+                            return self.db.global.showSpec
+                        end,
+                        set = function(_, value)
+                            self.db.global.showSpec = value
+                        end
+                    },
+                    showItemLevel = {
+                        order = 7,
+                        type = "toggle",
+                        name = "Show Item Level",
+                        desc = "Display the player's item level in the tooltip.",
+                        get = function()
+                            return self.db.global.showItemLevel
+                        end,
+                        set = function(_, value)
+                            self.db.global.showItemLevel = value
+                        end
+                    },
+                    showHeader = {
+                        order = 8,
+                        type = "toggle",
+                        name = "Show Header",
+                        desc = "Display the 'Quick Item Level' header above the spec and item level info.",
+                        get = function()
+                            return self.db.global.showHeader
+                        end,
+                        set = function(_, value)
+                            self.db.global.showHeader = value
+                        end
+                    },
+                    tooltipStyle = {
+                        order = 9,
+                        type = "select",
+                        name = "Tooltip Style",
+                        desc = "Choose how spec and item level are displayed in the tooltip.",
+                        values = {
+                            ["inline"] = "Inline Colors",
+                            ["sidebyside"] = "Side by Side",
+                            ["stacked"] = "Stacked Lines",
+                        },
+                        get = function()
+                            return self.db.global.tooltipStyle
+                        end,
+                        set = function(_, value)
+                            self.db.global.tooltipStyle = value
                         end
                     },
                 },
@@ -207,7 +211,7 @@ end
 local function GetInspectData(guid)
     local data = InspectCache[guid]
     if data then
-        if time() - data.timestamp >= cacheExpireTime then
+        if time() - data.timestamp >= QuickItemLevel.db.global.cacheExpireTime then
             InspectCache[guid] = nil
             printDebug("Removed cache entry for " .. guid .. " due to expiration")
             return nil
@@ -228,67 +232,96 @@ local function SetInspectData(guid, data)
     InspectCache[guid] = data
 end
 
-local lastInspectTime = 0
 local inspectQueue = {}
 local qilWaitingForData = false
 local pendingInspectGuid = nil
+local pendingInspectUnit = nil
 
 local function ProcessInspectQueue()
     if #inspectQueue > 0 then
-        local guid = table.remove(inspectQueue, 1)
-        local unit = "mouseover"
+        local entry = table.remove(inspectQueue, 1)
+        local guid, unit = entry[1], entry[2]
         if UnitGUID(unit) == guid and CanInspect(unit, true) then
             pendingInspectGuid = guid
+            pendingInspectUnit = unit
             NotifyInspect(unit)
-            printDebug("Inspecting " .. UnitName(unit))
+            printDebug("Inspecting " .. (UnitName(unit) or "unknown"))
         else
             printDebug("Cannot inspect, skipping")
         end
     end
 end
 
-local function UpdateMouseoverTooltip(self)
-    if not UnitIsPlayer("mouseover") then
+local function UpdateUnitTooltip(tooltip, unit)
+    if not unit or not UnitIsPlayer(unit) then
         return
     end
 
-    local guid = UnitGUID("mouseover")
+    local guid = UnitGUID(unit)
     local data = InspectCache[guid]
 
     if data then
-        GameTooltip_SetTooltipWaitingForData(self, false)
+        GameTooltip_SetTooltipWaitingForData(tooltip, false)
         qilWaitingForData = false
 
-        local addLine = true
-
-        for i = self:NumLines(), 1, -1 do
-            local line = _G[self:GetName() .. "TextLeft" .. i]:GetText()
-            if (line ~= nil and strsub(line, 1, 16) == "Quick Item Level") then
-                addLine = false
-                break
-            end
-        end
-
-        if not addLine then
+        if tooltip.qilGuid == guid then
             return
         end
+        tooltip.qilGuid = guid
 
-        local specName = data.specName
         if not data.class then return end
 
-        local specColor = RAID_CLASS_COLORS[string.upper(data.class)]
+        local specColor = RAID_CLASS_COLORS[data.class]
 
         if specColor == nil then
-            printDebug("ERROR: specColor is nil for " .. data.class)
+            printDebug("ERROR: specColor is nil for " .. tostring(data.class))
             specColor = RAID_CLASS_COLORS["PRIEST"]
         end
 
-        GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("Quick Item Level", 1, 0.85, 0, 1)
-        GameTooltip:AddLine(tostring(specName) .. " (" .. data.ilevel .. ")", specColor.r, specColor.g, specColor.b, 1)
-        GameTooltip:Show()
+        local showSpec = QuickItemLevel.db.global.showSpec
+        local showIlvl = QuickItemLevel.db.global.showItemLevel
+        local style = QuickItemLevel.db.global.tooltipStyle
+
+        if not showSpec and not showIlvl then return end
+
+        local specName = tostring(data.specName)
+        local classHex = string.format("|cFF%02x%02x%02x", specColor.r * 255, specColor.g * 255, specColor.b * 255)
+        local goldHex = "|cFFFFD900"
+        local goldR, goldG, goldB = 1, 0.85, 0
+
+        tooltip:AddLine(" ")
+        if QuickItemLevel.db.global.showHeader then
+            tooltip:AddLine("Quick Item Level", goldR, goldG, goldB, 1)
+        end
+
+        if style == "sidebyside" then
+            if showSpec and showIlvl then
+                tooltip:AddDoubleLine(specName, data.ilevel, specColor.r, specColor.g, specColor.b, goldR, goldG, goldB)
+            elseif showSpec then
+                tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
+            else
+                tooltip:AddLine("iLvl " .. data.ilevel, goldR, goldG, goldB, 1)
+            end
+        elseif style == "stacked" then
+            if showSpec then
+                tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
+            end
+            if showIlvl then
+                tooltip:AddLine("Item Level " .. data.ilevel, goldR, goldG, goldB, 1)
+            end
+        else -- inline
+            if showSpec and showIlvl then
+                tooltip:AddLine(classHex .. specName .. " " .. goldHex .. "(" .. data.ilevel .. ")|r")
+            elseif showSpec then
+                tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
+            else
+                tooltip:AddLine("iLvl " .. data.ilevel, goldR, goldG, goldB, 1)
+            end
+        end
+
+        tooltip:Show()
     else
-        GameTooltip_SetTooltipWaitingForData(self, true)
+        GameTooltip_SetTooltipWaitingForData(tooltip, true)
     end
 end
 
@@ -307,24 +340,60 @@ function QuickItemLevel:OnEnable()
     self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
     self:RegisterEvent("INSPECT_READY")
 
+    GameTooltip:HookScript("OnTooltipCleared", function(self)
+        self.qilGuid = nil
+    end)
+
     GameTooltip:HookScript("OnUpdate", function(self)
-        if not UnitIsPlayer("mouseover") then
+        local _, unit = self:GetUnit()
+        if not unit or not UnitIsPlayer(unit) then
             if qilWaitingForData then
                 GameTooltip_SetTooltipWaitingForData(self, false)
                 qilWaitingForData = false
             end
+            self.qilGuid = nil
             return
         end
 
-        local guid = UnitGUID("mouseover")
+        local guid = UnitGUID(unit)
         local data = InspectCache[guid]
 
         if data then
-            UpdateMouseoverTooltip(self)
+            UpdateUnitTooltip(self, unit)
             qilWaitingForData = false
         else
             GameTooltip_SetTooltipWaitingForData(self, true)
             qilWaitingForData = true
+        end
+    end)
+
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip)
+        if tooltip ~= GameTooltip then return end
+        local _, unit = tooltip:GetUnit()
+        if not unit or not UnitIsPlayer(unit) then
+            return
+        end
+        if unit == "mouseover" then
+            return -- handled by UPDATE_MOUSEOVER_UNIT
+        end
+
+        local guid = UnitGUID(unit)
+        local data = GetInspectData(guid)
+        local shiftKeyDown = IsShiftKeyDown()
+
+        if not data or (time() - data.timestamp >= QuickItemLevel.db.global.cacheExpireTime) then
+            if (not QuickItemLevel.db.global.shiftKeyRequired or shiftKeyDown) and CanInspect(unit, true) then
+                local capturedUnit = unit
+                C_Timer.After(QuickItemLevel.db.global.inspectDelay, function()
+                    if UnitGUID(capturedUnit) == guid then
+                        table.insert(inspectQueue, 1, {guid, capturedUnit})
+                        printDebug("Queued tooltip inspect for " .. (UnitName(capturedUnit) or "unknown"))
+                        ProcessInspectQueue()
+                    end
+                end)
+            end
+        else
+            UpdateUnitTooltip(GameTooltip, unit)
         end
     end)
 
@@ -346,48 +415,55 @@ function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
         local data = GetInspectData(guid)
         local shiftKeyDown = IsShiftKeyDown()
 
-        if not data or (time() - data.timestamp >= cacheExpireTime) then
+        if not data or (time() - data.timestamp >= self.db.global.cacheExpireTime) then
             if (not self.db.global.shiftKeyRequired or shiftKeyDown) and CanInspect(unit, true) then
                 C_Timer.After(self.db.global.inspectDelay, function()
                     if UnitGUID("mouseover") == guid then
-                        table.insert(inspectQueue, 1, guid)
-                        printDebug("Queued mouseover inspect for " .. UnitName(unit))
+                        table.insert(inspectQueue, 1, {guid, "mouseover"})
+                        printDebug("Queued mouseover inspect for " .. (UnitName(unit) or "unknown"))
                         ProcessInspectQueue()
                     end
                 end)
             else
-                printDebug("Cannot inspect " .. UnitName(unit) .. ", skipping")
+                printDebug("Cannot inspect " .. (UnitName(unit) or "unknown") .. ", skipping")
             end
         else
-            printDebug("Using cached data for " .. UnitName(unit) .. ", last updated " .. (time() - data.timestamp) ..
+            printDebug("Using cached data for " .. (UnitName(unit) or "unknown") .. ", last updated " .. (time() - data.timestamp) ..
                            " seconds ago")
-            UpdateMouseoverTooltip(GameTooltip)
+            UpdateUnitTooltip(GameTooltip, unit)
         end
     end
 end
 
 function QuickItemLevel:INSPECT_READY()
-    local mouseoverGuid = UnitGUID("mouseover")
-    if mouseoverGuid and mouseoverGuid == pendingInspectGuid then
+    if not pendingInspectGuid or not pendingInspectUnit then
+        return
+    end
+
+    local unit = pendingInspectUnit
+    local unitGuid = UnitGUID(unit)
+
+    if unitGuid and unitGuid == pendingInspectGuid then
         pendingInspectGuid = nil
-        local class, _, classId = UnitClass("mouseover")
-        local spec = GetInspectSpecialization("mouseover")
+        pendingInspectUnit = nil
+
+        local className, classFile, classId = UnitClass(unit)
+        local spec = GetInspectSpecialization(unit)
         local specName = GetSpecNameByID(spec)
-        local ilevel = C_PaperDollInfo.GetInspectItemLevel("mouseover")
+        local ilevel = C_PaperDollInfo.GetInspectItemLevel(unit)
 
         if ilevel ~= 0 then
             local data = {
-                class = class,
+                class = classFile,
                 spec = spec,
                 specName = specName,
                 ilevel = ilevel,
                 timestamp = time()
             }
 
-            SetInspectData(mouseoverGuid, data)
-            printDebug("InspectUnit: " .. mouseoverGuid .. " " .. class .. " " .. spec .. " " .. ilevel)
-            printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
-            UpdateMouseoverTooltip(GameTooltip)
+            SetInspectData(unitGuid, data)
+            printDebug("InspectUnit: " .. unitGuid .. " " .. classFile .. " " .. spec .. " " .. ilevel)
+            UpdateUnitTooltip(GameTooltip, unit)
         end
     end
 end
