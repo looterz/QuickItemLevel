@@ -231,12 +231,14 @@ end
 local lastInspectTime = 0
 local inspectQueue = {}
 local qilWaitingForData = false
+local pendingInspectGuid = nil
 
 local function ProcessInspectQueue()
     if #inspectQueue > 0 then
         local guid = table.remove(inspectQueue, 1)
         local unit = "mouseover"
         if UnitGUID(unit) == guid and CanInspect(unit, true) then
+            pendingInspectGuid = guid
             NotifyInspect(unit)
             printDebug("Inspecting " .. UnitName(unit))
         else
@@ -364,8 +366,10 @@ function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
     end
 end
 
-function QuickItemLevel:INSPECT_READY(_, guid)
-    if guid and UnitGUID("mouseover") == guid then
+function QuickItemLevel:INSPECT_READY()
+    local mouseoverGuid = UnitGUID("mouseover")
+    if mouseoverGuid and mouseoverGuid == pendingInspectGuid then
+        pendingInspectGuid = nil
         local class, _, classId = UnitClass("mouseover")
         local spec = GetInspectSpecialization("mouseover")
         local specName = GetSpecNameByID(spec)
@@ -380,8 +384,8 @@ function QuickItemLevel:INSPECT_READY(_, guid)
                 timestamp = time()
             }
 
-            SetInspectData(guid, data)
-            printDebug("InspectUnit: " .. guid .. " " .. class .. " " .. spec .. " " .. ilevel)
+            SetInspectData(mouseoverGuid, data)
+            printDebug("InspectUnit: " .. mouseoverGuid .. " " .. class .. " " .. spec .. " " .. ilevel)
             printDebug("Refreshing mouseover tooltip for " .. UnitName("mouseover"))
             UpdateMouseoverTooltip(GameTooltip)
         end
