@@ -237,6 +237,7 @@ local qilWaitingForData = false
 local pendingInspectGuid = nil
 local pendingInspectUnit = nil
 
+
 local function ProcessInspectQueue()
     if #inspectQueue > 0 then
         local entry = table.remove(inspectQueue, 1)
@@ -342,11 +343,20 @@ function QuickItemLevel:OnEnable()
 
     GameTooltip:HookScript("OnTooltipCleared", function(self)
         self.qilGuid = nil
+        self.qilInspectGuid = nil
     end)
 
     GameTooltip:HookScript("OnUpdate", function(self)
-        local _, unit = self:GetUnit()
-        if not unit or not UnitIsPlayer(unit) then
+        local ok, _, unit = pcall(self.GetUnit, self)
+        if not ok then return end
+
+        local isPlayer = false
+        if unit then
+            local ok2, result = pcall(UnitIsPlayer, unit)
+            if ok2 then isPlayer = result end
+        end
+
+        if not unit or not isPlayer then
             if qilWaitingForData then
                 GameTooltip_SetTooltipWaitingForData(self, false)
                 qilWaitingForData = false
@@ -364,36 +374,22 @@ function QuickItemLevel:OnEnable()
         else
             GameTooltip_SetTooltipWaitingForData(self, true)
             qilWaitingForData = true
-        end
-    end)
 
-    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip)
-        if tooltip ~= GameTooltip then return end
-        local _, unit = tooltip:GetUnit()
-        if not unit or not UnitIsPlayer(unit) then
-            return
-        end
-        if unit == "mouseover" then
-            return -- handled by UPDATE_MOUSEOVER_UNIT
-        end
-
-        local guid = UnitGUID(unit)
-        local data = GetInspectData(guid)
-        local shiftKeyDown = IsShiftKeyDown()
-
-        if not data or (time() - data.timestamp >= QuickItemLevel.db.global.cacheExpireTime) then
-            if (not QuickItemLevel.db.global.shiftKeyRequired or shiftKeyDown) and CanInspect(unit, true) then
-                local capturedUnit = unit
-                C_Timer.After(QuickItemLevel.db.global.inspectDelay, function()
-                    if UnitGUID(capturedUnit) == guid then
-                        table.insert(inspectQueue, 1, {guid, capturedUnit})
-                        printDebug("Queued tooltip inspect for " .. (UnitName(capturedUnit) or "unknown"))
-                        ProcessInspectQueue()
-                    end
-                end)
+            -- Initiate inspection for non-mouseover units (mouseover handled by UPDATE_MOUSEOVER_UNIT)
+            if unit ~= "mouseover" and not self.qilInspectGuid then
+                self.qilInspectGuid = guid
+                local shiftKeyDown = IsShiftKeyDown()
+                if (not QuickItemLevel.db.global.shiftKeyRequired or shiftKeyDown) and CanInspect(unit, true) then
+                    local capturedUnit = unit
+                    C_Timer.After(QuickItemLevel.db.global.inspectDelay, function()
+                        if UnitGUID(capturedUnit) == guid then
+                            table.insert(inspectQueue, 1, {guid, capturedUnit})
+                            printDebug("Queued tooltip inspect for " .. (UnitName(capturedUnit) or "unknown"))
+                            ProcessInspectQueue()
+                        end
+                    end)
+                end
             end
-        else
-            UpdateUnitTooltip(GameTooltip, unit)
         end
     end)
 
