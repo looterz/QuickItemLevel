@@ -1,31 +1,15 @@
 # Quick Item Level
 
-A lightweight World of Warcraft addon that displays player item levels and specializations in tooltips.
-
-Hover over any player — in the world, on your party or raid frames, your target, focus, or target-of-target — to instantly see their gear level and spec.
+A lightweight World of Warcraft addon that displays player item levels and specializations in tooltips. Hover over any player — in the world, on your party or raid frames, your target, focus, or target-of-target — to instantly see their gear level and spec.
 
 ## Features
 
-- **Item Level & Spec Display**
-  Hover over any player to see their average item level and current specialization.
-
-- **Works on All Unit Frames**
-  Target, focus, party, raid, and target-of-target frames are all supported.
-
-- **Customizable Tooltip Style**
-  Choose between three display layouts:
-  - *Inline Colors* (default) — Spec and item level on one line with class color and gold.
-  - *Side by Side* — Spec on the left, item level on the right.
-  - *Stacked Lines* — Spec and item level on separate lines.
-
-- **Display Options**
-  Toggle spec name, item level, and header visibility independently.
-
-- **Efficient LRU Caching**
-  Configurable cache size and expiration to minimize API calls.
-
-- **Lightweight and Non-Intrusive**
-  Integrates seamlessly with the default WoW UI.
+- **Item Level & Spec Display** — Hover over any player to see their average item level and current specialization.
+- **Works on All Unit Frames** — Target, focus, party, raid, and target-of-target frames are all supported.
+- **Customizable Tooltip Style** — Choose between Inline Colors, Side by Side, or Stacked Lines.
+- **Display Options** — Toggle spec name, item level, and header visibility independently.
+- **Efficient LRU Caching** — Configurable cache size and expiration to minimize API calls.
+- **Lightweight and Non-Intrusive** — Integrates seamlessly with the default WoW UI.
 
 ## Installation
 
