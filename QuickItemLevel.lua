@@ -414,7 +414,8 @@ function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
         if not data or (time() - data.timestamp >= self.db.global.cacheExpireTime) then
             if (not self.db.global.shiftKeyRequired or shiftKeyDown) and CanInspect(unit, true) then
                 C_Timer.After(self.db.global.inspectDelay, function()
-                    if UnitGUID("mouseover") == guid then
+                    local ok, match = pcall(function() return UnitGUID("mouseover") == guid end)
+                    if ok and match then
                         table.insert(inspectQueue, 1, {guid, "mouseover"})
                         printDebug("Queued mouseover inspect for " .. (UnitName(unit) or "unknown"))
                         ProcessInspectQueue()
