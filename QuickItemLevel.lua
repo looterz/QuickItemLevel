@@ -408,7 +408,9 @@ function QuickItemLevel:UPDATE_MOUSEOVER_UNIT()
     local unit = "mouseover"
     if UnitIsPlayer(unit) then
         local guid = UnitGUID(unit)
-        local data = GetInspectData(guid)
+        -- pcall guards against tainted guid from other addons' event dispatch chains
+        local ok, data = pcall(GetInspectData, guid)
+        if not ok then return end
         local shiftKeyDown = IsShiftKeyDown()
 
         if not data or (time() - data.timestamp >= self.db.global.cacheExpireTime) then
