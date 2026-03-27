@@ -10,6 +10,8 @@ local defaults = {
         cacheExpireTime = 600,
         showSpec = true,
         showItemLevel = true,
+        showPvPItemLevel = true,
+        showDecimalIlvl = false,
         tooltipStyle = "inline",
         showHeader = false,
     }
@@ -28,9 +30,109 @@ local GetSpecializationInfoByID = GetSpecializationInfoByID
 local C_PaperDollInfo = C_PaperDollInfo
 local GameTooltip_SetTooltipWaitingForData = GameTooltip_SetTooltipWaitingForData
 
+local C_PvP = C_PvP
+local C_TooltipInfo = C_TooltipInfo
+local GetInventoryItemLink = GetInventoryItemLink
+local GetItemInfo = GetItemInfo
+
 local QuickItemLevelDebug = false
 
 local printDebug = QuickItemLevelDebug and print or function()
+end
+
+-- PvP item level detection
+-- Build a locale-safe pattern from Blizzard's PVP_ITEM_LEVEL_TOOLTIP GlobalString
+-- We format with a sentinel number then build the pattern from the result,
+-- which handles any format specifier (%d, %s, %1$d, etc.) and any locale.
+local PVP_ILVL_PATTERN
+if PVP_ITEM_LEVEL_TOOLTIP then
+    local sample = PVP_ITEM_LEVEL_TOOLTIP:format(12345)
+    sample = sample:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1")
+    PVP_ILVL_PATTERN = sample:gsub("12345", "(%%d+)")
+else
+    PVP_ILVL_PATTERN = "item level to a minimum of (%d+)"
+end
+
+-- Equipment slots for average item level calculation
+-- Excludes shirt (4), includes tabard (19) which counts as 1 ilvl
+-- Divisor is 16 to match Blizzard's average item level formula
+local EQUIPMENT_SLOTS = {1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19}
+local NUM_EQUIPMENT_SLOTS = 16
+
+local function IsInPvPContent()
+    return C_PvP.IsPVPMap() or C_PvP.IsWarModeActive()
+end
+
+local function StripColorCodes(text)
+    return text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+end
+
+local function GetPvPItemLevelFromTooltip(tooltipData)
+    if not tooltipData or not tooltipData.lines then return nil end
+    for _, line in ipairs(tooltipData.lines) do
+        if line.leftText then
+            local cleanText = StripColorCodes(line.leftText)
+            local pvpIlvl = cleanText:match(PVP_ILVL_PATTERN)
+            if pvpIlvl then
+                return tonumber(pvpIlvl)
+            end
+        end
+    end
+    return nil
+end
+
+local function GetBaseItemLevelFromTooltip(tooltipData)
+    if not tooltipData or not tooltipData.lines then return nil end
+    local itemLevelType = Enum.TooltipDataLineType.ItemLevel
+    for _, line in ipairs(tooltipData.lines) do
+        if line.type == itemLevelType then
+            if line.itemLevel then
+                return line.itemLevel
+            end
+            if line.leftText then
+                local ilvl = line.leftText:match("(%d+)")
+                if ilvl then return tonumber(ilvl) end
+            end
+        end
+    end
+    return nil
+end
+
+local function CalculatePvPItemLevel(unit)
+    local totalIlvl = 0
+    local mainHandIlvl = 0
+    local mainHandIs2H = false
+
+    for _, slotID in ipairs(EQUIPMENT_SLOTS) do
+        local itemLink = GetInventoryItemLink(unit, slotID)
+        if itemLink then
+            local tooltipData = C_TooltipInfo.GetHyperlink(itemLink)
+            local baseIlvl = GetBaseItemLevelFromTooltip(tooltipData) or 0
+            local pvpIlvl = GetPvPItemLevelFromTooltip(tooltipData)
+
+            -- Use the higher of base or PvP minimum for items with PvP scaling
+            local effectiveIlvl = baseIlvl
+            if pvpIlvl and pvpIlvl > effectiveIlvl then
+                effectiveIlvl = pvpIlvl
+            end
+
+            -- Handle 2H weapons: they count for both main hand and off hand slots
+            if slotID == 16 then
+                mainHandIlvl = effectiveIlvl
+                local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemLink)
+                if equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT" then
+                    mainHandIs2H = true
+                end
+            end
+
+            totalIlvl = totalIlvl + effectiveIlvl
+        elseif slotID == 17 and mainHandIs2H then
+            -- Empty off hand with a 2H main hand: count main hand ilvl again
+            totalIlvl = totalIlvl + mainHandIlvl
+        end
+    end
+
+    return totalIlvl / NUM_EQUIPMENT_SLOTS
 end
 
 -- LRU cache implementation
@@ -162,8 +264,32 @@ function QuickItemLevel:GetOptions()
                             self.db.global.showItemLevel = value
                         end
                     },
-                    showHeader = {
+                    showPvPItemLevel = {
                         order = 8,
+                        type = "toggle",
+                        name = "Show PvP Item Level",
+                        desc = "Display PvP-adjusted item level when in Arenas, Battlegrounds, or War Mode. Calculates the effective item level by accounting for PvP item scaling on equipped gear.",
+                        get = function()
+                            return self.db.global.showPvPItemLevel
+                        end,
+                        set = function(_, value)
+                            self.db.global.showPvPItemLevel = value
+                        end
+                    },
+                    showDecimalIlvl = {
+                        order = 9,
+                        type = "toggle",
+                        name = "Show Decimal Item Level",
+                        desc = "Display item level with 2 decimal places instead of rounding to a whole number.",
+                        get = function()
+                            return self.db.global.showDecimalIlvl
+                        end,
+                        set = function(_, value)
+                            self.db.global.showDecimalIlvl = value
+                        end
+                    },
+                    showHeader = {
+                        order = 10,
                         type = "toggle",
                         name = "Show Header",
                         desc = "Display the 'Quick Item Level' header above the spec and item level info.",
@@ -175,7 +301,7 @@ function QuickItemLevel:GetOptions()
                         end
                     },
                     tooltipStyle = {
-                        order = 9,
+                        order = 11,
                         type = "select",
                         name = "Tooltip Style",
                         desc = "Choose how spec and item level are displayed in the tooltip.",
@@ -268,6 +394,14 @@ local function UpdateUnitTooltip(tooltip, unit)
         if tooltip.qilGuid == guid then
             return
         end
+
+        -- If we already added lines for a different player, don't add new lines
+        -- until OnTooltipCleared fires. This prevents cross-contamination when
+        -- the mouseover changes before the tooltip is rebuilt.
+        if tooltip.qilGuid ~= nil then
+            return
+        end
+
         tooltip.qilGuid = guid
 
         if not data.class then return end
@@ -281,6 +415,7 @@ local function UpdateUnitTooltip(tooltip, unit)
 
         local showSpec = QuickItemLevel.db.global.showSpec
         local showIlvl = QuickItemLevel.db.global.showItemLevel
+        local showPvP = QuickItemLevel.db.global.showPvPItemLevel
         local style = QuickItemLevel.db.global.tooltipStyle
 
         if not showSpec and not showIlvl then return end
@@ -288,7 +423,25 @@ local function UpdateUnitTooltip(tooltip, unit)
         local specName = tostring(data.specName)
         local classHex = string.format("|cFF%02x%02x%02x", specColor.r * 255, specColor.g * 255, specColor.b * 255)
         local goldHex = "|cFFFFD900"
+        local greenHex = "|cFF00DE00"
         local goldR, goldG, goldB = 1, 0.85, 0
+
+        -- Determine which item level to display
+        local displayIlvl = data.ilevel
+        local isPvP = false
+        if showPvP and data.pvpIlevel and IsInPvPContent() then
+            if math.floor(data.pvpIlevel) ~= math.floor(data.ilevel) then
+                displayIlvl = data.pvpIlevel
+                isPvP = true
+            end
+        end
+
+        -- Format the item level as a string
+        if QuickItemLevel.db.global.showDecimalIlvl then
+            displayIlvl = string.format("%.2f", displayIlvl)
+        else
+            displayIlvl = tostring(math.floor(displayIlvl))
+        end
 
         tooltip:AddLine(" ")
         if QuickItemLevel.db.global.showHeader then
@@ -297,26 +450,33 @@ local function UpdateUnitTooltip(tooltip, unit)
 
         if style == "sidebyside" then
             if showSpec and showIlvl then
-                tooltip:AddDoubleLine(specName, data.ilevel, specColor.r, specColor.g, specColor.b, goldR, goldG, goldB)
+                local ilvlText = isPvP and (displayIlvl .. " PvP") or tostring(displayIlvl)
+                tooltip:AddDoubleLine(specName, ilvlText, specColor.r, specColor.g, specColor.b, goldR, goldG, goldB)
             elseif showSpec then
                 tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
             else
-                tooltip:AddLine("iLvl " .. data.ilevel, goldR, goldG, goldB, 1)
+                local ilvlText = isPvP and ("iLvl " .. displayIlvl .. " (PvP)") or ("iLvl " .. displayIlvl)
+                tooltip:AddLine(ilvlText, goldR, goldG, goldB, 1)
             end
         elseif style == "stacked" then
             if showSpec then
                 tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
             end
             if showIlvl then
-                tooltip:AddLine("Item Level " .. data.ilevel, goldR, goldG, goldB, 1)
+                local ilvlText = isPvP and ("Item Level " .. displayIlvl .. " (PvP)") or ("Item Level " .. displayIlvl)
+                tooltip:AddLine(ilvlText, goldR, goldG, goldB, 1)
             end
         else -- inline
             if showSpec and showIlvl then
-                tooltip:AddLine(classHex .. specName .. " " .. goldHex .. "(" .. data.ilevel .. ")|r")
+                local ilvlPart = isPvP
+                    and (goldHex .. displayIlvl .. " " .. greenHex .. "PvP")
+                    or (goldHex .. tostring(displayIlvl))
+                tooltip:AddLine(classHex .. specName .. " " .. goldHex .. "(" .. ilvlPart .. goldHex .. ")|r")
             elseif showSpec then
                 tooltip:AddLine(specName, specColor.r, specColor.g, specColor.b, 1)
             else
-                tooltip:AddLine("iLvl " .. data.ilevel, goldR, goldG, goldB, 1)
+                local ilvlText = isPvP and ("iLvl " .. displayIlvl .. " (PvP)") or ("iLvl " .. displayIlvl)
+                tooltip:AddLine(ilvlText, goldR, goldG, goldB, 1)
             end
         end
 
@@ -452,16 +612,21 @@ function QuickItemLevel:INSPECT_READY()
         local ilevel = C_PaperDollInfo.GetInspectItemLevel(unit)
 
         if ilevel ~= 0 then
+            local pvpIlevel = CalculatePvPItemLevel(unit)
+            -- Round to 2 decimal places to match Blizzard's display
+            pvpIlevel = math.floor(pvpIlevel * 100 + 0.5) / 100
+
             local data = {
                 class = classFile,
                 spec = spec,
                 specName = specName,
                 ilevel = ilevel,
+                pvpIlevel = pvpIlevel,
                 timestamp = time()
             }
 
             SetInspectData(unitGuid, data)
-            printDebug("InspectUnit: " .. unitGuid .. " " .. classFile .. " " .. spec .. " " .. ilevel)
+            printDebug("InspectUnit: " .. unitGuid .. " " .. classFile .. " " .. spec .. " " .. ilevel .. " pvp:" .. pvpIlevel)
             UpdateUnitTooltip(GameTooltip, unit)
         end
     end
