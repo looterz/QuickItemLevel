@@ -5,7 +5,6 @@ A lightweight World of Warcraft addon that displays player item levels and speci
 ## Features
 
 - **Item Level & Spec Display**: Hover over any player to see their average item level and current specialization.
-- **PvP Item Level Display**: While in PvP content, QuickItemLevel will estimate the players active PvP Item Level.
 - **Works on All Unit Frames**: Target, focus, party, raid, and target-of-target frames are all supported.
 - **Customizable Tooltip Style**: Choose between Inline Colors, Side by Side, or Stacked Lines.
 - **Display Options**: Toggle spec name, item level, and header visibility independently.

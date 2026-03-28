@@ -31,9 +31,6 @@ local C_PaperDollInfo = C_PaperDollInfo
 local GameTooltip_SetTooltipWaitingForData = GameTooltip_SetTooltipWaitingForData
 
 local C_PvP = C_PvP
-local C_TooltipInfo = C_TooltipInfo
-local GetInventoryItemLink = GetInventoryItemLink
-local GetItemInfo = GetItemInfo
 
 local QuickItemLevelDebug = false
 
@@ -67,72 +64,79 @@ local function StripColorCodes(text)
     return text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
 end
 
-local function GetPvPItemLevelFromTooltip(tooltipData)
-    if not tooltipData or not tooltipData.lines then return nil end
-    for _, line in ipairs(tooltipData.lines) do
-        if line.leftText then
-            local cleanText = StripColorCodes(line.leftText)
-            local pvpIlvl = cleanText:match(PVP_ILVL_PATTERN)
-            if pvpIlvl then
-                return tonumber(pvpIlvl)
-            end
-        end
-    end
-    return nil
-end
+-- Hidden scanning tooltip for reading item data directly from inspection data.
+-- SetInventoryItem queries the game engine's inspection cache, bypassing the
+-- item data cache that C_TooltipInfo.GetHyperlink and GetDetailedItemLevelInfo
+-- depend on. This makes it reliable for inspected players' gear.
+local ScanTooltip = CreateFrame("GameTooltip", "QuickItemLevelScanTooltip", nil, "GameTooltipTemplate")
 
-local function GetBaseItemLevelFromTooltip(tooltipData)
-    if not tooltipData or not tooltipData.lines then return nil end
-    local itemLevelType = Enum.TooltipDataLineType.ItemLevel
-    for _, line in ipairs(tooltipData.lines) do
-        if line.type == itemLevelType then
-            if line.itemLevel then
-                return line.itemLevel
-            end
-            if line.leftText then
-                local ilvl = line.leftText:match("(%d+)")
-                if ilvl then return tonumber(ilvl) end
-            end
-        end
-    end
-    return nil
-end
+-- Locale-safe pattern for the "Item Level" tooltip line
+local ITEM_LEVEL_PATTERN = ITEM_LEVEL:gsub("%%d", "(%%d+)")
 
-local function CalculatePvPItemLevel(unit)
-    local totalIlvl = 0
-    local mainHandIlvl = 0
-    local mainHandIs2H = false
+-- Scan one equipped item via hidden tooltip for PvP scaling delta.
+-- Returns the ilvl uplift (pvpIlvl - baseIlvl), or 0 if no PvP scaling.
+local function ScanItemPvPDelta(unit, slotID)
+    -- Re-set owner before each scan. SetOwner clears and resets the tooltip,
+    -- guaranteeing it's in a usable state. Various operations can silently
+    -- remove the owner and make the tooltip unusable (see wiki advanced notes).
+    ScanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+    local hasItem = ScanTooltip:SetInventoryItem(unit, slotID)
+    if not hasItem then return 0 end
 
-    for _, slotID in ipairs(EQUIPMENT_SLOTS) do
-        local itemLink = GetInventoryItemLink(unit, slotID)
-        if itemLink then
-            local tooltipData = C_TooltipInfo.GetHyperlink(itemLink)
-            local baseIlvl = GetBaseItemLevelFromTooltip(tooltipData) or 0
-            local pvpIlvl = GetPvPItemLevelFromTooltip(tooltipData)
+    local baseIlvl = nil
+    local pvpIlvl = nil
+    local lineCount = 0
 
-            -- Use the higher of base or PvP minimum for items with PvP scaling
-            local effectiveIlvl = baseIlvl
-            if pvpIlvl and pvpIlvl > effectiveIlvl then
-                effectiveIlvl = pvpIlvl
-            end
-
-            -- Handle 2H weapons: they count for both main hand and off hand slots
-            if slotID == 16 then
-                mainHandIlvl = effectiveIlvl
-                local _, _, _, _, _, _, _, _, equipLoc = GetItemInfo(itemLink)
-                if equipLoc == "INVTYPE_2HWEAPON" or equipLoc == "INVTYPE_RANGED" or equipLoc == "INVTYPE_RANGEDRIGHT" then
-                    mainHandIs2H = true
+    -- Use GetRegions() to safely iterate all fontstrings, avoiding the
+    -- GameTooltipTextLeft9 naming bug documented on the wiki.
+    for i = 1, select("#", ScanTooltip:GetRegions()) do
+        local region = select(i, ScanTooltip:GetRegions())
+        if region and region:GetObjectType() == "FontString" then
+            local text = region:GetText()
+            if text then
+                lineCount = lineCount + 1
+                if not baseIlvl then
+                    local ilvl = text:match(ITEM_LEVEL_PATTERN)
+                    if ilvl then baseIlvl = tonumber(ilvl) end
+                end
+                if not pvpIlvl then
+                    local cleanText = StripColorCodes(text)
+                    local pvp = cleanText:match(PVP_ILVL_PATTERN)
+                    if pvp then pvpIlvl = tonumber(pvp) end
                 end
             end
-
-            totalIlvl = totalIlvl + effectiveIlvl
-        elseif slotID == 17 and mainHandIs2H then
-            -- Empty off hand with a 2H main hand: count main hand ilvl again
-            totalIlvl = totalIlvl + mainHandIlvl
         end
     end
 
-    return totalIlvl / NUM_EQUIPMENT_SLOTS
+    if pvpIlvl and baseIlvl and pvpIlvl > baseIlvl then
+        local delta = pvpIlvl - baseIlvl
+        printDebug("  Slot " .. slotID .. ": base=" .. baseIlvl .. " pvp=" .. pvpIlvl .. " delta=+" .. delta .. " (" .. lineCount .. " lines)")
+        return delta
+    end
+
+    -- Log slots that have items but no PvP detected, with NumLines and last lines
+    local numLines = ScanTooltip:NumLines()
+    printDebug("  Slot " .. slotID .. ": NO PvP (regions: " .. lineCount .. " text, NumLines: " .. numLines .. ", base=" .. tostring(baseIlvl) .. ")")
+    for j = math.max(1, numLines - 2), numLines do
+        local fs = _G["QuickItemLevelScanTooltipTextLeft" .. j]
+        local text = fs and fs:GetText() or "<nil>"
+        printDebug("    L" .. j .. ": " .. text)
+    end
+    return 0
+end
+
+-- Compute the average PvP ilvl delta by scanning all equipped items.
+-- Synchronous — call from INSPECT_READY while inspection data is loaded.
+local function ComputePvPDelta(unit)
+    local totalDelta = 0
+
+    for _, slotID in ipairs(EQUIPMENT_SLOTS) do
+        totalDelta = totalDelta + ScanItemPvPDelta(unit, slotID)
+    end
+
+    local avgDelta = totalDelta / NUM_EQUIPMENT_SLOTS
+    printDebug("  Total PvP delta: " .. totalDelta .. ", avg: " .. avgDelta)
+    return avgDelta
 end
 
 -- LRU cache implementation
@@ -612,8 +616,10 @@ function QuickItemLevel:INSPECT_READY()
         local ilevel = C_PaperDollInfo.GetInspectItemLevel(unit)
 
         if ilevel ~= 0 then
-            local pvpIlevel = CalculatePvPItemLevel(unit)
-            -- Round to 2 decimal places to match Blizzard's display
+            -- Scan equipped items for PvP scaling via hidden tooltip.
+            -- Synchronous — SetInventoryItem reads directly from inspection data.
+            local pvpDelta = ComputePvPDelta(unit)
+            local pvpIlevel = ilevel + pvpDelta
             pvpIlevel = math.floor(pvpIlevel * 100 + 0.5) / 100
 
             local data = {
