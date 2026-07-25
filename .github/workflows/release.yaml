@@ -122,6 +122,4 @@ jobs:
           # Resolved from the '## Interface:' line in QuickItemLevel.toc, so bumping
           # the TOC for a new patch is all that is needed to retarget the upload.
           game_versions: ${{ steps.game_versions.outputs.GAME_VERSIONS }}
-          # Verify 'quick-item-level' is the correct CurseForge slug for the relation
-          relations: "quick-item-level:requiredDependency"
           token: ${{ secrets.CURSEFORGE_API_TOKEN }}
