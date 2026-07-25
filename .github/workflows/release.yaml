@@ -31,6 +31,14 @@ jobs:
           # Use GITHUB_OUTPUT for setting outputs (newer syntax)
           echo "VERSION=${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_OUTPUT
 
+      # Runs before the release is published so a bad interface number fails the
+      # build instead of shipping a file tagged for the wrong game versions.
+      - name: Resolve CurseForge game versions
+        id: game_versions
+        env:
+          CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+        run: python3 .github/scripts/resolve_game_versions.py >> $GITHUB_OUTPUT
+
       - name: Generate Changelog
         id: generate_changelog
         run: |
@@ -111,7 +119,9 @@ jobs:
           changelog_type: text # Keep as text if using the simple title
           display_name: QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip # Display name on CurseForge
           game_endpoint: wow
-          game_versions: "16238,14422,15855"
+          # Resolved from the '## Interface:' line in QuickItemLevel.toc, so bumping
+          # the TOC for a new patch is all that is needed to retarget the upload.
+          game_versions: ${{ steps.game_versions.outputs.GAME_VERSIONS }}
           # Verify 'quick-item-level' is the correct CurseForge slug for the relation
           relations: "quick-item-level:requiredDependency"
           token: ${{ secrets.CURSEFORGE_API_TOKEN }}
