@@ -55,28 +55,6 @@ jobs:
           echo "Generated Changelog:" # Log for debugging
           echo "${CHANGELOG_RAW}"     # Log for debugging
 
-      - name: Create GitHub Release
-        id: create_release
-        # Replace the archived action with a maintained one that supports body content
-        uses: softprops/action-gh-release@v2
-        env:
-          # The GITHUB_TOKEN is automatically available and sufficient with the right permissions
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # Use the version determined earlier for the tag
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          # Set the release name (title)
-          name: Release ${{ steps.get_version.outputs.VERSION }}
-          # Include the generated changelog in the release body
-          body: |
-            Changes in this Release:
-            ${{ steps.generate_changelog.outputs.CHANGELOG }}
-          # Set draft and prerelease status as before
-          draft: false
-          prerelease: false
-          # Note: softprops/action-gh-release can also upload assets directly using the 'files' input,
-          # but we'll keep your separate bundling step for now.
-
       - name: Bundle Addon
         run: |
           ADDON_NAME="QuickItemLevel" # Define addon name variable
@@ -104,6 +82,27 @@ jobs:
 
           echo "Bundle created successfully."
           ls -l "$BUILD_DIR" # List build directory contents for verification
+
+      - name: Create GitHub Release
+        id: create_release
+        # Replace the archived action with a maintained one that supports body content
+        uses: softprops/action-gh-release@v2
+        env:
+          # The GITHUB_TOKEN is automatically available and sufficient with the right permissions
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Use the version determined earlier for the tag
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          # Set the release name (title)
+          name: Release ${{ steps.get_version.outputs.VERSION }}
+          # Include the generated changelog in the release body
+          body: |
+            Changes in this Release:
+            ${{ steps.generate_changelog.outputs.CHANGELOG }}
+          # Set draft and prerelease status as before
+          draft: false
+          prerelease: false
+          files: build/QuickItemLevel-${{ steps.get_version.outputs.VERSION }}.zip
 
       - name: Upload to CurseForge
         # Keep using the specified version of the CurseForge upload action
